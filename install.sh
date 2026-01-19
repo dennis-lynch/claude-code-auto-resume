@@ -4,6 +4,21 @@
 
 set -e
 
+echo "Checking prerequisites..."
+if command -v python3 &> /dev/null; then
+    PYTHON_CMD="python3"
+elif command -v python &> /dev/null; then
+    PYTHON_CMD="python"
+else
+    echo "Error: Python 3.9+ is required."
+    exit 1
+fi
+
+if ! $PYTHON_CMD -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)"; then
+    echo "Error: Python 3.9+ is required."
+    exit 1
+fi
+
 CLAUDE_DIR="$HOME/.claude"
 HOOKS_DIR="$CLAUDE_DIR/hooks"
 COMMANDS_DIR="$CLAUDE_DIR/commands"
@@ -48,15 +63,7 @@ if [ -f "$SETTINGS_FILE" ]; then
     cp "$SETTINGS_FILE" "$BACKUP_FILE"
     echo "✓ Backed up settings to $BACKUP_FILE"
 
-    # Check if python3 or python is available for JSON manipulation
-    if command -v python3 &> /dev/null; then
-        PYTHON_CMD="python3"
-    elif command -v python &> /dev/null; then
-        PYTHON_CMD="python"
-    else
-        echo "Error: Python is required for JSON merging"
-        exit 1
-    fi
+    # Python check performed at start
 
     # Use Python to safely merge the JSON
     $PYTHON_CMD << 'PYEOF'

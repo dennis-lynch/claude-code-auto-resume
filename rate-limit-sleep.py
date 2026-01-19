@@ -263,6 +263,7 @@ def hook_mode():
 
         if sleep_seconds > 0:
             log(f"Sleeping until {wake_time.strftime('%Y-%m-%d %H:%M:%S %Z')} ({sleep_seconds:.0f} seconds)")
+            print(f"Rate limit sleep: Pausing for {sleep_seconds:.0f} seconds until {wake_time.strftime('%H:%M:%S')}...", file=sys.stderr)
             time.sleep(sleep_seconds)
             log("Waking up - resuming Claude")
         else:

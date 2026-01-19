@@ -13,6 +13,6 @@ from pathlib import Path
 
 script_dir = Path(__file__).parent
 sys.exit(subprocess.call(
-    [sys.executable, "-m", "pytest", "tests/", "-v"] + sys.argv[1:],
+    [sys.executable, "-m", "pytest", "tests/", "-q"] + sys.argv[1:],
     cwd=script_dir
 ))

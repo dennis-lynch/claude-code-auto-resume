@@ -3,6 +3,22 @@
 
 $ErrorActionPreference = "Stop"
 
+Write-Host "Checking prerequisites..."
+if (Get-Command python -ErrorAction SilentlyContinue) {
+    try {
+        python -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Python 3.9+ is required."
+        }
+    }
+    catch {
+        Write-Error "Failed to check Python version."
+    }
+}
+else {
+    Write-Error "Python not found. Please install Python 3.9+."
+}
+
 $ClaudeDir = "$env:USERPROFILE\.claude"
 $HooksDir = "$ClaudeDir\hooks"
 $CommandsDir = "$ClaudeDir\commands"
