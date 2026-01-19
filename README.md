@@ -2,23 +2,9 @@
 
 Automatically handles Claude Code usage limits by sleeping until the reset time and resuming your session.
 
-## Features
-
-- Detects rate limit messages like "You've hit your limit "resets 4am (America/Los_Angeles)"
-- Parses the reset time and timezone
-- Sleeps until 5 minutes after the reset time
-- Automatically continues your Claude Code session
-- Logs all activity to ~/.claude/hooks/rate-limit.log
-
-## Requirements
-
-- Python 3.9+ (for `zoneinfo` module)
-- Claude Code CLI
-
 ## Installation
 
-### Unix/Mac/Git Bash (Windows)
-
+### Unix/Mac/Git Bash
 ```bash
 git clone git@github.com:dennis-lynch/claude-code-auto-resume.git
 cd claude-code-auto-resume
@@ -26,7 +12,6 @@ cd claude-code-auto-resume
 ```
 
 ### Windows PowerShell
-
 ```powershell
 git clone git@github.com:dennis-lynch/claude-code-auto-resume.git
 cd claude-code-auto-resume
@@ -34,32 +19,51 @@ cd claude-code-auto-resume
 ```
 
 ## Uninstallation
-
 ```bash
 ./uninstall.sh
 ```
 
-## Configuration
+## Running Tests
 
-The default configuration:
-- **Buffer time**: 5 minutes after reset (edit `BUFFER_MINUTES` in the script)
-- **Log file**: ~/.claude/hooks/rate-limit.log
+Requires [uv](https://docs.astral.sh/uv/).
+
+```bash
+# Unix/Mac/Git Bash
+./run_tests.sh
+
+# Windows PowerShell
+.\run_tests.ps1
+
+# Direct (any platform)
+uv run run_tests.py
+```
+
+## Manual Testing
+```bash
+# Test rate limit detection
+echo '{"stop_reason": "hit your limit resets 4am (America/Los_Angeles)"}' | python rate-limit-sleep.py
+
+# Test non-rate-limit (should allow)
+echo '{"stop_reason": "user requested"}' | python rate-limit-sleep.py
+```
 
 ## How It Works
 
-This hook uses Claude Code's "Stop" hook event. When Claude is about to stop:
+1. Hook receives JSON from Claude Code's "Stop" event
+2. Checks if stop reason matches rate limit patterns
+3. Parses reset time and timezone from message
+4. Sleeps until reset time + 5 minute buffer
+5. Returns `{"decision": "block"}` to prevent stopping
 
-1. The hook receives JSON containing the stop reason
-2. It checks if the reason matches a rate limit pattern
-3. If matched, it parses the reset time and timezone
-4. Sleeps until the reset time + buffer
-5. Returns `{"decision": "block"}` to prevent Claude from stopping
+## Configuration
 
-## Testing
+- **Buffer time**: Edit `BUFFER_MINUTES` in `rate-limit-sleep.py` (default: 5 minutes)
+- **Log file**: `~/.claude/hooks/rate-limit.log`
 
-```bash
-echo '{"stop_reason": "hit your limit resets 4am (America/Los_Angeles)"}' | python ~/.claude/hooks/rate-limit-sleep.py
-```
+## Requirements
+
+- Python 3.9+
+- Claude Code CLI
 
 ## License
 

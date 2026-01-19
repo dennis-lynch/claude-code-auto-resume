@@ -3,61 +3,59 @@ import pytest
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from conftest import rate_limit_sleep
-
 
 class TestTimeFormatParsing:
     """Test various time format strings."""
 
-    def test_simple_am(self):
+    def test_simple_am(self, rate_limit_sleep):
         """Test simple AM time like '4am'."""
         result = rate_limit_sleep.parse_reset_time("4am", "UTC")
         assert result.hour == 4
         assert result.minute == 0
 
-    def test_simple_pm(self):
+    def test_simple_pm(self, rate_limit_sleep):
         """Test simple PM time like '11pm'."""
         result = rate_limit_sleep.parse_reset_time("11pm", "UTC")
         assert result.hour == 23
         assert result.minute == 0
 
-    def test_colon_format_am(self):
+    def test_colon_format_am(self, rate_limit_sleep):
         """Test colon format like '4:00am'."""
         result = rate_limit_sleep.parse_reset_time("4:00am", "UTC")
         assert result.hour == 4
         assert result.minute == 0
 
-    def test_colon_format_pm_with_minutes(self):
+    def test_colon_format_pm_with_minutes(self, rate_limit_sleep):
         """Test colon format like '11:30pm'."""
         result = rate_limit_sleep.parse_reset_time("11:30pm", "UTC")
         assert result.hour == 23
         assert result.minute == 30
 
-    def test_midnight(self):
+    def test_midnight(self, rate_limit_sleep):
         """Test midnight (12am)."""
         result = rate_limit_sleep.parse_reset_time("12am", "UTC")
         assert result.hour == 0
         assert result.minute == 0
 
-    def test_noon(self):
+    def test_noon(self, rate_limit_sleep):
         """Test noon (12pm)."""
         result = rate_limit_sleep.parse_reset_time("12pm", "UTC")
         assert result.hour == 12
         assert result.minute == 0
 
-    def test_almost_midnight(self):
+    def test_almost_midnight(self, rate_limit_sleep):
         """Test 11:59pm."""
         result = rate_limit_sleep.parse_reset_time("11:59pm", "UTC")
         assert result.hour == 23
         assert result.minute == 59
 
-    def test_whitespace_between(self):
+    def test_whitespace_between(self, rate_limit_sleep):
         """Test time with space like '4 am'."""
         result = rate_limit_sleep.parse_reset_time("4 am", "UTC")
         assert result.hour == 4
         assert result.minute == 0
 
-    def test_uppercase_am_pm(self):
+    def test_uppercase_am_pm(self, rate_limit_sleep):
         """Test uppercase AM/PM like '4AM'."""
         result = rate_limit_sleep.parse_reset_time("4AM", "UTC")
         assert result.hour == 4
@@ -67,32 +65,32 @@ class TestTimeFormatParsing:
 class TestTimezoneHandling:
     """Test timezone parsing and handling."""
 
-    def test_los_angeles(self):
+    def test_los_angeles(self, rate_limit_sleep):
         """Test America/Los_Angeles timezone."""
         result = rate_limit_sleep.parse_reset_time("4am", "America/Los_Angeles")
         assert result.tzinfo == ZoneInfo("America/Los_Angeles")
 
-    def test_new_york(self):
+    def test_new_york(self, rate_limit_sleep):
         """Test America/New_York timezone."""
         result = rate_limit_sleep.parse_reset_time("4am", "America/New_York")
         assert result.tzinfo == ZoneInfo("America/New_York")
 
-    def test_london(self):
+    def test_london(self, rate_limit_sleep):
         """Test Europe/London timezone."""
         result = rate_limit_sleep.parse_reset_time("4am", "Europe/London")
         assert result.tzinfo == ZoneInfo("Europe/London")
 
-    def test_tokyo(self):
+    def test_tokyo(self, rate_limit_sleep):
         """Test Asia/Tokyo timezone."""
         result = rate_limit_sleep.parse_reset_time("4am", "Asia/Tokyo")
         assert result.tzinfo == ZoneInfo("Asia/Tokyo")
 
-    def test_utc(self):
+    def test_utc(self, rate_limit_sleep):
         """Test UTC timezone."""
         result = rate_limit_sleep.parse_reset_time("4am", "UTC")
         assert result.tzinfo == ZoneInfo("UTC")
 
-    def test_space_normalization(self):
+    def test_space_normalization(self, rate_limit_sleep):
         """Test that spaces in timezone are converted to underscores."""
         # "America/Los Angeles" should become "America/Los_Angeles"
         result = rate_limit_sleep.parse_reset_time("4am", "America/Los Angeles")
@@ -102,7 +100,7 @@ class TestTimezoneHandling:
 class TestPastTimeHandling:
     """Test that past times are handled correctly (add a day)."""
 
-    def test_past_time_adds_day(self):
+    def test_past_time_adds_day(self, rate_limit_sleep):
         """Test that a time in the past results in next day."""
         tz = ZoneInfo("UTC")
         now = datetime.now(tz)
@@ -119,7 +117,7 @@ class TestPastTimeHandling:
         # Result should be in the future
         assert result > now
 
-    def test_future_time_same_day(self):
+    def test_future_time_same_day(self, rate_limit_sleep):
         """Test that a time in the future stays on same day."""
         tz = ZoneInfo("UTC")
         now = datetime.now(tz)

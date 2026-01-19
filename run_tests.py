@@ -3,6 +3,7 @@
 # requires-python = ">=3.9"
 # dependencies = [
 #     "pytest",
+#     "tzdata",
 # ]
 # ///
 """Test runner using uv inline script metadata."""

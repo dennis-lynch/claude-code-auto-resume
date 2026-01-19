@@ -3,8 +3,6 @@ import pytest
 import json
 import re
 
-from conftest import rate_limit_sleep
-
 
 def check_rate_limit_detection(message: str) -> bool:
     """Helper to check if a message would be detected as rate limit."""
