@@ -22,7 +22,7 @@ $NewHook = @{
     hooks = @(
         @{
             type = "command"
-            command = "python ~/.claude/hooks/rate-limit-sleep.py"
+            command = "python %USERPROFILE%\.claude\hooks\rate-limit-sleep.py"
             timeout = 86400
         }
     )
