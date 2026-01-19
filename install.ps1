@@ -5,6 +5,7 @@ $ErrorActionPreference = "Stop"
 
 $ClaudeDir = "$env:USERPROFILE\.claude"
 $HooksDir = "$ClaudeDir\hooks"
+$CommandsDir = "$ClaudeDir\commands"
 $SettingsFile = "$ClaudeDir\settings.json"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -12,16 +13,21 @@ Write-Host "Installing Claude Code Rate Limit Sleep Hook..."
 
 # Create directories if needed
 New-Item -ItemType Directory -Force -Path $HooksDir | Out-Null
+New-Item -ItemType Directory -Force -Path $CommandsDir | Out-Null
 
 # Copy the hook script
 Copy-Item "$ScriptDir\rate-limit-sleep.py" -Destination $HooksDir -Force
 Write-Host "✓ Installed hook script to $HooksDir\rate-limit-sleep.py"
 
+# Copy the slash command
+Copy-Item "$ScriptDir\commands\sleep.md" -Destination $CommandsDir -Force
+Write-Host "✓ Installed /sleep command to $CommandsDir\sleep.md"
+
 # Hook configuration
 $NewHook = @{
     hooks = @(
         @{
-            type = "command"
+            type    = "command"
             command = "python %USERPROFILE%\.claude\hooks\rate-limit-sleep.py"
             timeout = 86400
         }
@@ -67,7 +73,8 @@ if (Test-Path $SettingsFile) {
         $Settings | ConvertTo-Json -Depth 10 | Set-Content $SettingsFile
         Write-Host "✓ Added hook to settings.json"
     }
-} else {
+}
+else {
     Write-Host "Creating new settings.json..."
     $Settings = @{
         hooks = @{
@@ -80,4 +87,9 @@ if (Test-Path $SettingsFile) {
 
 Write-Host ""
 Write-Host "Installation complete!"
+Write-Host ""
+Write-Host "Installed components:"
+Write-Host "  - Stop hook: Auto-sleeps when rate limited"
+Write-Host "  - /sleep command: Manual sleep (e.g., /sleep 2h, /sleep 4pm)"
+Write-Host ""
 Write-Host "Log file location: $HooksDir\rate-limit.log"

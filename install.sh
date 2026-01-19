@@ -6,6 +6,7 @@ set -e
 
 CLAUDE_DIR="$HOME/.claude"
 HOOKS_DIR="$CLAUDE_DIR/hooks"
+COMMANDS_DIR="$CLAUDE_DIR/commands"
 SETTINGS_FILE="$CLAUDE_DIR/settings.json"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -13,11 +14,16 @@ echo "Installing Claude Code Rate Limit Sleep Hook..."
 
 # Create directories if needed
 mkdir -p "$HOOKS_DIR"
+mkdir -p "$COMMANDS_DIR"
 
 # Copy the hook script
 cp "$SCRIPT_DIR/rate-limit-sleep.py" "$HOOKS_DIR/"
 chmod +x "$HOOKS_DIR/rate-limit-sleep.py"
 echo "✓ Installed hook script to $HOOKS_DIR/rate-limit-sleep.py"
+
+# Copy the slash command
+cp "$SCRIPT_DIR/commands/sleep.md" "$COMMANDS_DIR/"
+echo "✓ Installed /sleep command to $COMMANDS_DIR/sleep.md"
 
 # Hook configuration to add
 HOOK_ENTRY='{
@@ -125,7 +131,9 @@ fi
 
 echo ""
 echo "Installation complete!"
-echo "Log file location: $HOOKS_DIR/rate-limit.log"
 echo ""
-echo "To test, run:"
-echo "  echo '{\"stop_reason\": \"hit your limit resets 4am (America/Los_Angeles)\"}' | python ~/.claude/hooks/rate-limit-sleep.py"
+echo "Installed components:"
+echo "  - Stop hook: Auto-sleeps when rate limited"
+echo "  - /sleep command: Manual sleep (e.g., /sleep 2h, /sleep 4pm)"
+echo ""
+echo "Log file location: $HOOKS_DIR/rate-limit.log"

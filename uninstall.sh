@@ -5,6 +5,7 @@ set -e
 
 CLAUDE_DIR="$HOME/.claude"
 HOOKS_DIR="$CLAUDE_DIR/hooks"
+COMMANDS_DIR="$CLAUDE_DIR/commands"
 SETTINGS_FILE="$CLAUDE_DIR/settings.json"
 
 echo "Uninstalling Claude Code Rate Limit Sleep Hook..."
@@ -13,6 +14,12 @@ echo "Uninstalling Claude Code Rate Limit Sleep Hook..."
 if [ -f "$HOOKS_DIR/rate-limit-sleep.py" ]; then
     rm "$HOOKS_DIR/rate-limit-sleep.py"
     echo "✓ Removed hook script"
+fi
+
+# Remove slash command
+if [ -f "$COMMANDS_DIR/sleep.md" ]; then
+    rm "$COMMANDS_DIR/sleep.md"
+    echo "✓ Removed /sleep command"
 fi
 
 # Remove from settings.json if it exists

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Claude Code hook to handle rate limit by sleeping until reset time.
+Can also be invoked manually via CLI: python rate-limit-sleep.py 2h
 """
 import sys
 import json
@@ -19,6 +20,76 @@ def log(message: str):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(LOG_FILE, "a") as f:
         f.write(f"[{timestamp}] {message}\n")
+
+def parse_duration(duration_str: str) -> int | None:
+    """Parse duration like '2h', '30m', '45s' into seconds. Returns None if not a duration."""
+    duration_str = duration_str.lower().strip()
+    match = re.match(r"^(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minute|minutes|s|sec|secs|second|seconds)$", duration_str)
+    if not match:
+        return None
+    
+    value = float(match.group(1))
+    unit = match.group(2)
+    
+    if unit in ("h", "hr", "hrs", "hour", "hours"):
+        return int(value * 3600)
+    elif unit in ("m", "min", "mins", "minute", "minutes"):
+        return int(value * 60)
+    else:  # seconds
+        return int(value)
+
+def parse_time_to_seconds(time_str: str, tz: ZoneInfo = None) -> int | None:
+    """Parse time like '4pm', '11:30am' into seconds until that time. Returns None if not a time."""
+    time_str = time_str.lower().strip()
+    
+    # Try to match time formats
+    if ":" in time_str:
+        match = re.match(r"^(\d{1,2}):(\d{2})\s*(am|pm)$", time_str)
+        if not match:
+            return None
+        hour = int(match.group(1))
+        minute = int(match.group(2))
+        period = match.group(3)
+    else:
+        match = re.match(r"^(\d{1,2})\s*(am|pm)$", time_str)
+        if not match:
+            return None
+        hour = int(match.group(1))
+        minute = 0
+        period = match.group(2)
+    
+    # Convert to 24-hour
+    if period == "pm" and hour != 12:
+        hour += 12
+    elif period == "am" and hour == 12:
+        hour = 0
+    
+    # Use local timezone if not specified
+    if tz is None:
+        tz = datetime.now().astimezone().tzinfo
+    
+    now = datetime.now(tz)
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    
+    # If target time is in the past, it's for tomorrow
+    if target <= now:
+        target += timedelta(days=1)
+    
+    return int((target - now).total_seconds())
+
+def parse_duration_or_time(arg: str) -> int:
+    """Parse either a duration (2h, 30m) or time (4pm) into seconds to sleep."""
+    # Try duration first
+    seconds = parse_duration(arg)
+    if seconds is not None:
+        return seconds
+    
+    # Try time
+    seconds = parse_time_to_seconds(arg)
+    if seconds is not None:
+        return seconds
+    
+    raise ValueError(f"Could not parse '{arg}' as duration (e.g., 2h, 30m) or time (e.g., 4pm, 11:30am)")
 
 def parse_reset_time(time_str: str, tz_str: str) -> datetime:
     """Parse reset time like '4am' or '11:30pm' with timezone."""
@@ -58,7 +129,31 @@ def parse_reset_time(time_str: str, tz_str: str) -> datetime:
 
     return reset
 
-def main():
+def manual_sleep(arg: str):
+    """Handle manual invocation via CLI argument."""
+    try:
+        sleep_seconds = parse_duration_or_time(arg)
+        wake_time = datetime.now() + timedelta(seconds=sleep_seconds)
+        
+        log(f"Manual sleep requested: {arg} ({sleep_seconds} seconds)")
+        log(f"Sleeping until {wake_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        print(f"Sleeping for {sleep_seconds} seconds (until {wake_time.strftime('%H:%M:%S')})...")
+        time.sleep(sleep_seconds)
+        
+        log("Waking up - resuming Claude")
+        print("Awake! Resuming...")
+        
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        log("Sleep interrupted by user")
+        print("\nSleep interrupted.")
+        sys.exit(0)
+
+def hook_mode():
+    """Handle hook mode - read from stdin."""
     try:
         # Read stdin
         input_data = json.load(sys.stdin)
@@ -119,6 +214,14 @@ def main():
         log(f"Error parsing time: {e}")
         # On error, allow normal stop behavior
         print(json.dumps({"decision": "allow"}))
+
+def main():
+    # Check if invoked with CLI argument (manual mode)
+    if len(sys.argv) > 1:
+        manual_sleep(sys.argv[1])
+    else:
+        # Hook mode - read from stdin
+        hook_mode()
 
 if __name__ == "__main__":
     main()
