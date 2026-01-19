@@ -95,7 +95,15 @@ def parse_reset_time(time_str: str, tz_str: str) -> datetime:
     """Parse reset time like '4am' or '11:30pm' with timezone."""
     # Normalize timezone string (handle common variations)
     tz_str = tz_str.strip().replace(" ", "_")
-    tz = ZoneInfo(tz_str)
+    
+    # Try to get timezone, with fallback to local timezone
+    try:
+        tz = ZoneInfo(tz_str)
+    except Exception as e:
+        # On Windows without tzdata package, ZoneInfo may not find IANA timezones
+        # Fall back to local system timezone
+        log(f"DEBUG: ZoneInfo failed for '{tz_str}': {e}, using local timezone")
+        tz = datetime.now().astimezone().tzinfo
 
     # Parse time - handle formats: "4am", "4:00am", "11:30pm"
     time_str = time_str.lower().strip()
@@ -152,16 +160,67 @@ def manual_sleep(arg: str):
         print("\nSleep interrupted.")
         sys.exit(0)
 
+def get_recent_transcript_content(transcript_path: str, num_lines: int = 20) -> str:
+    """Read the last N lines of the transcript JSONL file and extract text content."""
+    try:
+        path = Path(transcript_path)
+        if not path.exists():
+            log(f"DEBUG: Transcript file not found: {transcript_path}")
+            return ""
+        
+        # Read all lines and get last N
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        
+        recent_lines = lines[-num_lines:] if len(lines) > num_lines else lines
+        
+        # Extract text content from each JSON line
+        content_parts = []
+        for line in recent_lines:
+            try:
+                entry = json.loads(line.strip())
+                # Look for message content in various possible locations
+                if isinstance(entry, dict):
+                    # Common patterns for message content
+                    if "message" in entry:
+                        msg = entry["message"]
+                        if isinstance(msg, str):
+                            content_parts.append(msg)
+                        elif isinstance(msg, dict) and "content" in msg:
+                            content_parts.append(str(msg["content"]))
+                    if "content" in entry:
+                        content_parts.append(str(entry["content"]))
+                    if "text" in entry:
+                        content_parts.append(str(entry["text"]))
+                    # Also stringify the whole entry to catch nested content
+                    content_parts.append(str(entry))
+            except json.JSONDecodeError:
+                content_parts.append(line)
+        
+        return " ".join(content_parts)
+    except Exception as e:
+        log(f"DEBUG: Error reading transcript: {e}")
+        return ""
+
+
 def hook_mode():
     """Handle hook mode - read from stdin."""
     try:
         # Read stdin
         input_data = json.load(sys.stdin)
-    except json.JSONDecodeError:
+        log(f"DEBUG: Received JSON input: {json.dumps(input_data, indent=2)[:1000]}")
+    except json.JSONDecodeError as e:
+        log(f"DEBUG: JSON decode error: {e}")
         input_data = {}
 
-    # Convert entire input to string to search for rate limit pattern
-    message = str(input_data)
+    # Stop hooks don't receive message content directly - only metadata
+    # We need to read the transcript file to find rate limit messages
+    transcript_path = input_data.get("transcript_path", "")
+    transcript_content = get_recent_transcript_content(transcript_path)
+    
+    # Combine input metadata and transcript content for searching
+    message = str(input_data) + " " + transcript_content
+    log(f"DEBUG: Combined message (first 500 chars): {message[:500]}")
 
     # Rate limit indicator patterns
     rate_limit_indicators = [
@@ -173,9 +232,11 @@ def hook_mode():
 
     # Check if this looks like a rate limit scenario
     is_rate_limit = any(re.search(p, message, re.IGNORECASE) for p in rate_limit_indicators)
+    log(f"DEBUG: is_rate_limit = {is_rate_limit}")
 
     if not is_rate_limit:
-        print(json.dumps({"decision": "allow"}))
+        log("DEBUG: Not a rate limit, returning continue=False")
+        print(json.dumps({"continue": False}))
         return
 
     # Extract time and timezone from the message
@@ -184,7 +245,7 @@ def hook_mode():
 
     if not match:
         log("Rate limit detected but no reset time found")
-        print(json.dumps({"decision": "allow"}))
+        print(json.dumps({"continue": False}))
         return
 
     time_str = match.group(1)  # e.g., "4am" or "11:30pm"
@@ -207,13 +268,13 @@ def hook_mode():
         else:
             log("Reset time already passed, continuing immediately")
 
-        # Tell Claude to continue (block the stop)
-        print(json.dumps({"decision": "block"}))
+        # Tell Claude to continue (block the stop, resume Claude)
+        print(json.dumps({"continue": True}))
 
     except Exception as e:
         log(f"Error parsing time: {e}")
         # On error, allow normal stop behavior
-        print(json.dumps({"decision": "allow"}))
+        print(json.dumps({"continue": False}))
 
 def main():
     # Check if invoked with CLI argument (manual mode)
